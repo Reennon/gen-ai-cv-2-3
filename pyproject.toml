@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "gen-ai-cv-lab-1"
+version = "0.1.0"
+description = "poetry project for gen ai lab 1 from computer vision"
+authors = ["rkovalch <ro.kovalch@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10.12"
+python-dotenv = "^1.0.1"
+jupyter = "^1.1.1"
+torch = "^2.5.1"
+pytorch-lightning = "^2.4.0"
+wandb = "^0.18.7"
+torchvision = "^0.20.1"
+omegaconf = "^2.3.0"
+matplotlib = "^3.9.3"
+scikit-learn = "^1.5.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

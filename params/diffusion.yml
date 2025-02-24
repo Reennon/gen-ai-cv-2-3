@@ -1,0 +1,12 @@
+hyperparameters:
+  epochs: 10
+  timesteps: 1000
+  lr: 1e-3
+  img_channels: 1
+  hidden_dim: 64
+  time_embed_dim: 128
+run_parameters:
+  experiment_name: "Diffusion_MNIST"
+training:
+  accelerator: "gpu"
+  devices: 1

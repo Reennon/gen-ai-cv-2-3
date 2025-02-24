@@ -1,0 +1,10 @@
+run_parameters:
+  experiment_name: "gan-100-Lipschitz-Penalty"
+hyperparameters:
+  lr: 2e-4
+  epochs: 100
+  latent_dim: 100
+  lambda_lp: 10  # Regularization coefficient for Lipschitz penalty
+training:
+  accelerator: "gpu"
+  devices: 1

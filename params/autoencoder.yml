@@ -1,0 +1,16 @@
+run_parameters:
+  experiment_name: "autoencoder-64-scheduler"
+hyperparameters:
+  lr: 5e-3
+  epochs: 20
+  latent_dim: 64
+  scheduler:
+    type: PolynomialLR  # Options: PolynomialLR, ReduceLROnPlateau, None
+    params:
+      total_iters: 20
+      power: 1.0
+  optimizer:
+    type: Adam
+training:
+  accelerator: "gpu"
+  devices: 1
