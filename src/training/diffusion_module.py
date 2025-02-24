@@ -1,46 +1,40 @@
-# File: src/training/diffusion_module.py
+# File: src/models/diffusion_model.py
 import torch
 import torch.nn.functional as F
-import pytorch_lightning as pl
-from src.models.diffusion import SimpleDiffusionModel
+from src.models.base_model import BaseModel
+from src.models.diffusion import SimpleUnconditionalDiffusion
 
 
-def cosine_beta_schedule(timesteps: int) -> torch.Tensor:
-    s = 0.008  # small offset to prevent singularities
-    steps = timesteps + 1
-    x = torch.linspace(0, timesteps, steps)
-    alphas_cumprod = torch.cos(((x / timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
-    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
-    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
-    return torch.clip(betas, 0.0001, 0.9999)
+def linear_beta_schedule(timesteps: int) -> torch.Tensor:
+    beta_start = 0.0001
+    beta_end = 0.02
+    return torch.linspace(beta_start, beta_end, timesteps)
 
 
-class DiffusionLitModule(pl.LightningModule):
-    def __init__(self, hparams: dict):
+class Diffusion(BaseModel):
+    def __init__(self, hparams):
         """
-        hparams: Dictionary containing hyperparameters, for example:
-            {
-                'epochs': 10,
-                'timesteps': 1000,
-                'lr': 1e-3,
-                'img_channels': 1,
-                'hidden_dim': 64,
-                'time_embed_dim': 128
-            }
+        hparams should contain keys such as:
+            - 'timesteps': number of diffusion steps (e.g., 1000)
+            - 'lr': learning rate
+            - 'img_channels': number of image channels (e.g., 1 for MNIST)
+            - 'hidden_dim': CNN hidden dimension
+            - 'time_embed_dim': dimension for time embedding
+            - optimizer and scheduler settings in 'optimizer' and 'scheduler'
         """
-        super().__init__()
-        self.save_hyperparameters(hparams)
-        # Initialize the diffusion model.
-        self.model = SimpleDiffusionModel(
-            img_channels=self.hparams.get('img_channels', 1),
-            hidden_dim=self.hparams.get('hidden_dim', 64),
-            time_embed_dim=self.hparams.get('time_embed_dim', 128)
+        super(Diffusion, self).__init__(hparams)
+        self.timesteps = hparams.get('timesteps', 1000)
+
+        # Initialize the unconditional diffusion network.
+        self.model = SimpleUnconditionalDiffusion(
+            img_channels=hparams.get('img_channels', 1),
+            hidden_dim=hparams.get('hidden_dim', 64),
+            time_embed_dim=hparams.get('time_embed_dim', 128)
         )
-        self.timesteps = self.hparams.get('timesteps', 1000)
-        self.lr = self.hparams.get('lr', 1e-3)
+        self.lr = hparams.get('lr', 1e-3)
 
-        # Precompute diffusion schedule parameters.
-        self.register_buffer('betas', cosine_beta_schedule(self.timesteps))
+        # Precompute the diffusion schedule.
+        self.register_buffer('betas', linear_beta_schedule(self.timesteps))
         alphas = 1.0 - self.betas
         self.register_buffer('alphas', alphas)
         alphas_cumprod = torch.cumprod(alphas, dim=0)
@@ -49,58 +43,53 @@ class DiffusionLitModule(pl.LightningModule):
         self.register_buffer('sqrt_one_minus_alphas_cumprod', torch.sqrt(1 - alphas_cumprod))
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass that delegates to the unconditional diffusion network.
+        """
         return self.model(x, t)
 
-    def training_step(self, batch, batch_idx: int) -> torch.Tensor:
-        # Batch is expected to be a tuple (images, labels); we only use images.
-        x, _ = batch  # x shape: [B, 1, 28, 28]
-        batch_size = x.size(0)
-        # Sample a random timestep for each image.
-        t = torch.randint(0, self.timesteps, (batch_size,), device=x.device)
-        # Retrieve precomputed coefficients.
-        sqrt_alphas_cumprod_t = self.sqrt_alphas_cumprod[t].view(-1, 1, 1, 1)
-        sqrt_one_minus_alphas_cumprod_t = self.sqrt_one_minus_alphas_cumprod[t].view(-1, 1, 1, 1)
-        # Sample random Gaussian noise.
+    def training_step(self, batch, batch_idx):
+        # For diffusion training, labels are not used.
+        x, _ = batch  # x shape: [B, img_channels, H, W]
+        B = x.size(0)
+        device = x.device
+
+        # Sample a random timestep t (integer in [0, timesteps-1]).
+        t = torch.randint(0, self.timesteps, (B,), device=device)
+
+        # Retrieve corresponding diffusion schedule parameters.
+        sqrt_alphas_cumprod_t = self.sqrt_alphas_cumprod[t].view(B, 1, 1, 1)
+        sqrt_one_minus_alphas_cumprod_t = self.sqrt_one_minus_alphas_cumprod[t].view(B, 1, 1, 1)
+
+        # Sample random noise.
         noise = torch.randn_like(x)
-        # Create the noisy images.
+
+        # Create noisy images.
         noisy_x = sqrt_alphas_cumprod_t * x + sqrt_one_minus_alphas_cumprod_t * noise
-        # Normalize t (between 0 and 1) for network input.
+
+        # Normalize t to [0,1] for the network.
+        t_norm = t.float() / self.timesteps
+
+        # Predict noise using the diffusion model.
+        predicted_noise = self.model(noisy_x, t_norm)
+        loss = F.mse_loss(predicted_noise, noise)
+        self.log("train_loss", loss)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, _ = batch
+        B = x.size(0)
+        device = x.device
+        t = torch.randint(0, self.timesteps, (B,), device=device)
+        sqrt_alphas_cumprod_t = self.sqrt_alphas_cumprod[t].view(B, 1, 1, 1)
+        sqrt_one_minus_alphas_cumprod_t = self.sqrt_one_minus_alphas_cumprod[t].view(B, 1, 1, 1)
+        noise = torch.randn_like(x)
+        noisy_x = sqrt_alphas_cumprod_t * x + sqrt_one_minus_alphas_cumprod_t * noise
         t_norm = t.float() / self.timesteps
         predicted_noise = self.model(noisy_x, t_norm)
         loss = F.mse_loss(predicted_noise, noise)
-        self.log('train_loss', loss)
+        self.log("val_loss", loss)
+
+        # For visualization, store original and noisy images.
+        self.validation_outputs.append((x, noisy_x))
         return loss
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
-
-    @torch.no_grad()
-    def sample_ddim(self, num_steps: int = 50, eta: float = 0.0, shape: tuple = (1, 1, 28, 28)) -> torch.Tensor:
-        """
-        Deterministic sampling using DDIM.
-        :param num_steps: Number of sampling steps (fewer than training timesteps).
-        :param eta: Controls stochasticity (0.0 yields deterministic sampling).
-        :param shape: Shape of the generated image batch.
-        :return: Generated images tensor.
-        """
-        device = self.betas.device
-        x = torch.randn(shape, device=device)
-        times = torch.linspace(self.timesteps - 1, 0, num_steps, device=device, dtype=torch.long)
-        for i in range(num_steps):
-            t = times[i]
-            t_tensor = torch.full((shape[0],), t, device=device, dtype=torch.float32)
-            t_norm = t_tensor / self.timesteps
-            predicted_noise = self.model(x, t_norm)
-            alpha_t = self.alphas_cumprod[t]
-            sqrt_alpha_t = torch.sqrt(alpha_t)
-            sqrt_one_minus_alpha_t = torch.sqrt(1 - alpha_t)
-            x0_pred = (x - sqrt_one_minus_alpha_t * predicted_noise) / sqrt_alpha_t
-            if t > 0:
-                alpha_prev = self.alphas_cumprod[t - 1]
-                sigma = eta * torch.sqrt((1 - alpha_prev) / (1 - alpha_t) * (1 - alpha_t / alpha_prev))
-                noise = torch.randn_like(x) if eta > 0 else 0.0
-                x = torch.sqrt(alpha_prev) * x0_pred + torch.sqrt(
-                    1 - alpha_prev - sigma ** 2) * predicted_noise + sigma * noise
-            else:
-                x = x0_pred
-        return x

@@ -5,6 +5,11 @@ hyperparameters:
   img_channels: 1
   hidden_dim: 64
   time_embed_dim: 128
+  optimizer:
+    type: "Adam"
+    weight_decay: 0.0
+  scheduler:
+    type": null
 run_parameters:
   experiment_name: "Diffusion_MNIST"
 training:
