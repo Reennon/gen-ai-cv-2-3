@@ -11,7 +11,7 @@ def linear_beta_schedule(timesteps: int) -> torch.Tensor:
     return torch.linspace(beta_start, beta_end, timesteps)
 
 
-class Diffusion(BaseModel):
+class DiffusionModel(BaseModel):
     def __init__(self, hparams):
         """
         hparams should contain keys such as:
@@ -22,7 +22,7 @@ class Diffusion(BaseModel):
             - 'time_embed_dim': dimension for time embedding
             - optimizer and scheduler settings in 'optimizer' and 'scheduler'
         """
-        super(Diffusion, self).__init__(hparams)
+        super(DiffusionModel, self).__init__(hparams)
         self.timesteps = hparams.get('timesteps', 1000)
 
         # Initialize the unconditional diffusion network.
