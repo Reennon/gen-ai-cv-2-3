@@ -2,7 +2,7 @@
 import torch
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from models.diffusion import SimpleDiffusionModel
+from src.models.diffusion import SimpleDiffusionModel
 
 
 def linear_beta_schedule(timesteps: int) -> torch.Tensor:
