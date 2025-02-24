@@ -42,6 +42,20 @@ class DiffusionModel(BaseModel):
         self.register_buffer('sqrt_alphas_cumprod', torch.sqrt(alphas_cumprod))
         self.register_buffer('sqrt_one_minus_alphas_cumprod', torch.sqrt(1 - alphas_cumprod))
 
+    def on_train_epoch_start(self):
+        """
+        Hook to log the learning rates of all optimizers at the start of each training epoch.
+        """
+        optimizers = self.optimizers()
+        # Ensure optimizers is iterable.
+        if not isinstance(optimizers, (list, tuple)):
+            optimizers = [optimizers]
+
+        # Log the learning rates for each optimizer.
+        for idx, opt in enumerate(optimizers):
+            current_lr = opt.param_groups[0]['lr']
+            self.log(f'learning_rate_optimizer_{idx}', current_lr, on_step=False, on_epoch=True)
+
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """
         Forward pass that delegates to the unconditional diffusion network.
