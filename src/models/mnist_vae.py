@@ -17,22 +17,21 @@ class MnistVAE(BaseModel):
             nn.ReLU(),
             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),  # Output: (128, 4, 4)
             nn.ReLU(),
-            nn.Flatten(),
+            nn.Flatten(),  # Flatten to 128*4*4 = 2048
         )
-        # The flattened dimension is now 128 * 4 * 4 = 2048.
         self.fc_mu = nn.Linear(128 * 4 * 4, self.hparams['latent_dim'])
         self.fc_logvar = nn.Linear(128 * 4 * 4, self.hparams['latent_dim'])
 
-        # Define decoder accordingly.
+        # Updated decoder for MNIST
         self.decoder_fc = nn.Linear(self.hparams['latent_dim'], 128 * 4 * 4)
         self.decoder = nn.Sequential(
             nn.Unflatten(1, (128, 4, 4)),
-            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1),  # Output: (64, 7, 7)
+            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1),  # (64, 7, 7)
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # Output: (32, 14, 14)
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # (32, 14, 14)
             nn.ReLU(),
-            nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1),  # Output: (1, 28, 28)
-            nn.Sigmoid()
+            nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1),  # (1, 28, 28)
+            nn.Sigmoid()  # Output values between 0 and 1
         )
 
     def encode(self, x):
