@@ -124,3 +124,17 @@ class LatentDiffusionModel(BaseModel):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
+
+    def on_train_epoch_start(self):
+        """
+        Hook to log the learning rates of all optimizers at the start of each training epoch.
+        """
+        optimizers = self.optimizers()
+        # Ensure optimizers is iterable.
+        if not isinstance(optimizers, (list, tuple)):
+            optimizers = [optimizers]
+
+        for idx, opt in enumerate(optimizers):
+            current_lr = opt.param_groups[0]['lr']
+            self.log(f'learning_rate_optimizer_{idx}', current_lr, on_step=False, on_epoch=True)
+
