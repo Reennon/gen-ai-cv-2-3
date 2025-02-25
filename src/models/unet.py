@@ -9,35 +9,30 @@ class SinusoidalPositionEmbeddings(nn.Module):
         self.dim = dim
 
     def forward(self, time):
-        # Ensure the time tensor is 1-D (shape: [B])
+        # Ensure time is a 1D tensor: [B]
         if time.dim() > 1:
             time = time.squeeze(-1)
         device = time.device
         half_dim = self.dim // 2
-        # Compute the exponential scaling factor
         emb_factor = math.log(10000) / (half_dim - 1)
-        # Create a vector of shape [half_dim]
         emb = torch.exp(torch.arange(half_dim, device=device) * -emb_factor)
-        # Outer product: time: [B, 1], emb: [1, half_dim] -> [B, half_dim]
+        # Outer product: time: [B, 1], emb: [1, half_dim]
         embeddings = time.unsqueeze(1) * emb.unsqueeze(0)
-        # Concatenate sine and cosine embeddings -> [B, dim]
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
-        # If dim is odd, pad with zeros to match the desired dimension.
-        if self.dim % 2 == 1:
+        if self.dim % 2 == 1:  # zero pad if needed
             embeddings = F.pad(embeddings, (0, 1, 0, 0))
         return embeddings
-
-
-import torch
-import torch.nn as nn
 
 class TimeEmbeddingUNet(nn.Module):
     def __init__(self, in_channels, out_channels, time_embedding_dim, init_features=32):
         super(TimeEmbeddingUNet, self).__init__()
+        # Our time MLP outputs 'time_embedding_dim' dimensions,
+        # then we map it to 'init_features' to match the feature map channels.
         self.time_mlp = nn.Sequential(
             SinusoidalPositionEmbeddings(time_embedding_dim),
             nn.Linear(time_embedding_dim, time_embedding_dim),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Linear(time_embedding_dim, init_features)  # Map to init_features (e.g. 32)
         )
         features = init_features
         self.encoder1 = self._block(in_channels, features)
@@ -60,7 +55,7 @@ class TimeEmbeddingUNet(nn.Module):
         self.conv = nn.Conv2d(in_channels=features, out_channels=out_channels, kernel_size=1)
 
     def forward(self, x, time):
-        # Generate time embedding (ensure 'time' is of shape [B, 1] or [B])
+        # time: expected to be of shape [B, 1] or [B]
         t = self.time_mlp(time)
         enc1 = self.encoder1(x + t[:, :, None, None])
         enc2 = self.encoder2(self.pool1(enc1) + t[:, :, None, None])
@@ -91,4 +86,3 @@ class TimeEmbeddingUNet(nn.Module):
             nn.BatchNorm2d(num_features=features),
             nn.ReLU(inplace=True),
         )
-
