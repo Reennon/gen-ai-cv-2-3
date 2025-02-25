@@ -13,10 +13,10 @@ class SinusoidalPositionEmbeddings(nn.Module):
         half_dim = self.dim // 2
         embeddings = math.log(10000) / (half_dim - 1)
         embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
-        embeddings = time[:, None] * embeddings[None, :]
+        embeddings = time[:, None] * embeddings  # Adjusted to match dimensions
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
         if self.dim % 2 == 1:  # Zero pad if dimension is odd
-            embeddings = F.pad(embeddings, (0, 1))
+            embeddings = F.pad(embeddings, (0, 1, 0, 0))
         return embeddings
 
 
