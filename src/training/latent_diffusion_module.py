@@ -20,6 +20,7 @@ def sinusoidal_time_embedding(timesteps, embedding_dim):
         emb = F.pad(emb, (0, 1, 0, 0))
     return emb
 
+
 class LatentDiffusionModel(BaseModel):
     def __init__(self, hparams):
         super(LatentDiffusionModel, self).__init__(hparams)
@@ -65,6 +66,26 @@ class LatentDiffusionModel(BaseModel):
         noise_pred = self.diffusion_model(z, t_emb)
         return noise_pred
 
+    def validation_step(self, batch, batch_idx):
+        x, _ = batch
+        B = x.size(0)
+        device = x.device
+
+        # Sample random timesteps
+        t = torch.randint(0, self.timesteps, (B,), device=device)
+
+        # Forward pass with both x and t
+        noise_pred = self.forward(x, t)
+
+        # Compute loss
+        mu, logvar = self.vae.encode(x)
+        z = self.vae.reparameterize(mu, logvar)
+        noise = torch.randn_like(z)
+        loss = F.mse_loss(noise_pred, noise)
+
+        self.log("val_loss", loss)
+        return loss
+
     def training_step(self, batch, batch_idx):
         x, _ = batch  # x: [B, 1, 28, 28]
         B = x.size(0)
@@ -108,4 +129,3 @@ class LatentDiffusionModel(BaseModel):
         for idx, opt in enumerate(optimizers):
             current_lr = opt.param_groups[0]['lr']
             self.log(f'learning_rate_optimizer_{idx}', current_lr, on_step=False, on_epoch=True)
-
