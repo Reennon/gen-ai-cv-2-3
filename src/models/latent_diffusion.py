@@ -5,6 +5,8 @@ from src.models.base_model import BaseModel
 from src.models.mnist_vae import MnistVAE
 from omegaconf import OmegaConf  # if using OmegaConf for hyperparameters
 
+from src.training.latent_diffusion_module import LatentDiffusionModel
+
 
 def linear_beta_schedule(timesteps: int) -> torch.Tensor:
     beta_start = 0.0001
@@ -12,14 +14,14 @@ def linear_beta_schedule(timesteps: int) -> torch.Tensor:
     return torch.linspace(beta_start, beta_end, timesteps)
 
 
-class LatentDiffusionNetwork(LatentDiffusion):
+class LatentDiffusionNetwork(LatentDiffusionModel):
     """
     A simple MLP to predict noise in the latent space.
     It takes as input a noisy latent code and a normalized timestep.
     """
 
     def __init__(self, latent_dim: int, hidden_dim: int = 128, time_embed_dim: int = 64):
-        super(LatentDiffusion, self).__init__()
+        super(LatentDiffusionModel, self).__init__()
         self.time_embed = nn.Sequential(
             nn.Linear(1, time_embed_dim),
             nn.ReLU(),
