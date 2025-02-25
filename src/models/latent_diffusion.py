@@ -12,14 +12,14 @@ def linear_beta_schedule(timesteps: int) -> torch.Tensor:
     return torch.linspace(beta_start, beta_end, timesteps)
 
 
-class LatentDiffusionNetwork(nn.Module):
+class LatentDiffusionNetwork(LatentDiffusion):
     """
     A simple MLP to predict noise in the latent space.
     It takes as input a noisy latent code and a normalized timestep.
     """
 
     def __init__(self, latent_dim: int, hidden_dim: int = 128, time_embed_dim: int = 64):
-        super(LatentDiffusionNetwork, self).__init__()
+        super(LatentDiffusion, self).__init__()
         self.time_embed = nn.Sequential(
             nn.Linear(1, time_embed_dim),
             nn.ReLU(),
