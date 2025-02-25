@@ -3,10 +3,10 @@ hyperparameters:
   timesteps: 1000
   lr: 1e-3
   img_channels: 1
-  hidden_dim: 64
+  hidden_dim: 64           # (Not used in latent diffusion network—diffusion_net uses diff_hidden_dim)
   time_embed_dim: 128
-  latent_dim: 64         # Dimension of the VAE latent space
-  diff_hidden_dim: 128   # Hidden dimension for the latent diffusion network
+  latent_dim: 64           # Dimension of the VAE latent space
+  diff_hidden_dim: 128     # Hidden dimension for the latent diffusion network
   optimizer:
     type: "Adam"
     weight_decay: 0.0
