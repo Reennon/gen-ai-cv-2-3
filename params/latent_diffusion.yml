@@ -1,0 +1,19 @@
+hyperparameters:
+  epochs: 30
+  timesteps: 1000
+  lr: 1e-3
+  img_channels: 1
+  hidden_dim: 64
+  time_embed_dim: 128
+  latent_dim: 64         # Dimension of the VAE latent space
+  diff_hidden_dim: 128   # Hidden dimension for the latent diffusion network
+  optimizer:
+    type: "Adam"
+    weight_decay: 0.0
+  scheduler:
+    type: null
+run_parameters:
+  experiment_name: "Latent_Diffusion_MNIST"
+training:
+  accelerator: "gpu"
+  devices: 1
