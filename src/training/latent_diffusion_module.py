@@ -1,9 +1,11 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.models.base_model import BaseModel
 from src.models.mnist_vae import MnistVAE
-from src.models.unet import UNet  # Assuming you have a UNet implementation
+from src.models.unet import TimeEmbeddingUNet  # Assuming you have a UNet implementation
 
 def sinusoidal_time_embedding(timesteps, embedding_dim):
     """
@@ -31,8 +33,8 @@ class LatentDiffusionModel(BaseModel):
         # Instantiate the MNIST VAE
         self.vae = MnistVAE(hparams)
 
-        # Define the UNet model for diffusion
-        self.diffusion_model = UNet(
+        # Define the diffusion model using the U-Net with time embedding
+        self.diffusion_model = TimeEmbeddingUNet(
             in_channels=latent_dim,
             out_channels=latent_dim,
             time_embedding_dim=time_embed_dim
