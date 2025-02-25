@@ -7,7 +7,7 @@ from src.models.base_model import BaseModel
 from src.models.mnist_vae import MnistVAE
 from src.models.unet import TimeEmbeddingUNet  # Assuming you have a UNet implementation
 
-def sinusoidal_time_embedding(timesteps, embedding_dim):
+def sinusoidal_time_embedding(timesteps, embedding_dim=64):
     """
     Create sinusoidal time embeddings.
     """
@@ -16,9 +16,10 @@ def sinusoidal_time_embedding(timesteps, embedding_dim):
     emb = torch.exp(torch.arange(half_dim, device=device) * -(math.log(10000) / (half_dim - 1)))
     emb = timesteps[:, None] * emb[None, :]
     emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=1)
-    if embedding_dim % 2 == 1:  # zero pad
+    if embedding_dim % 2 == 1:  # zero pad if embedding_dim is odd
         emb = F.pad(emb, (0, 1, 0, 0))
     return emb
+
 
 
 class LatentDiffusionModel(BaseModel):
