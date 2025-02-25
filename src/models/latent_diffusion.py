@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.models.base_model import BaseModel
-from src.models.vae import VAE  # Ensure your VAE is modified for MNIST (1 channel)
+from src.models.mnist_vae import MnistVAE
 from omegaconf import OmegaConf  # if using OmegaConf for hyperparameters
 
 
@@ -62,7 +62,7 @@ class LatentDiffusion(BaseModel):
         self.latent_dim = hparams['latent_dim']
 
         # Instantiate the VAE. (Ensure the VAE is configured for MNIST; e.g., 1-channel input.)
-        self.vae = VAE(hparams)
+        self.vae = MnistVAE(hparams)
         # Optionally, you can freeze the VAE if it's pretrained:
         # for param in self.vae.parameters():
         #     param.requires_grad = False
