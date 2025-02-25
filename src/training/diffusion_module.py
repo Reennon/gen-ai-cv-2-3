@@ -107,3 +107,38 @@ class DiffusionModel(BaseModel):
         # For visualization, store original and noisy images.
         self.validation_outputs.append((x, noisy_x))
         return loss
+
+    @torch.no_grad()
+    def sample_ddim(self, num_steps: int = 50, eta: float = 0.0, shape: tuple = (16, 1, 28, 28)) -> torch.Tensor:
+        """
+        Deterministic sampling using DDIM.
+
+        Args:
+            num_steps: Number of sampling steps (fewer than training timesteps).
+            eta: Controls stochasticity (0.0 yields deterministic sampling).
+            shape: Shape of the generated image batch.
+
+        Returns:
+            Generated images tensor.
+        """
+        device = self.betas.device
+        x = torch.randn(shape, device=device)
+        times = torch.linspace(self.timesteps - 1, 0, num_steps, device=device, dtype=torch.long)
+        for i in range(num_steps):
+            t = times[i]
+            t_tensor = torch.full((shape[0],), t, device=device, dtype=torch.float32)
+            t_norm = t_tensor / self.timesteps
+            predicted_noise = self.model(x, t_norm)
+            alpha_t = self.alphas_cumprod[t]
+            sqrt_alpha_t = torch.sqrt(alpha_t)
+            sqrt_one_minus_alpha_t = torch.sqrt(1 - alpha_t)
+            x0_pred = (x - sqrt_one_minus_alpha_t * predicted_noise) / sqrt_alpha_t
+            if t > 0:
+                alpha_prev = self.alphas_cumprod[t - 1]
+                sigma = eta * torch.sqrt((1 - alpha_prev) / (1 - alpha_t) * (1 - alpha_t / alpha_prev))
+                noise = torch.randn_like(x) if eta > 0 else 0.0
+                x = torch.sqrt(alpha_prev) * x0_pred + torch.sqrt(
+                    1 - alpha_prev - sigma ** 2) * predicted_noise + sigma * noise
+            else:
+                x = x0_pred
+        return x
