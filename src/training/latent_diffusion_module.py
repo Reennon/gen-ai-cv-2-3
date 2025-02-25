@@ -56,14 +56,11 @@ class LatentDiffusionModel(BaseModel):
         """
         # Encode image to latent space (ensure your MnistVAE returns a spatial latent map)
         mu, logvar = self.vae.encode(x)
-        z = self.vae.reparameterize(mu, logvar)  # Expected shape: [B, latent_dim, H, W]
+        z = self.vae.reparameterize(mu, logvar)
 
-        # Generate time embeddings using your sinusoidal function
         t_emb = sinusoidal_time_embedding(t, self.hparams['time_embed_dim'])  # [B, time_embed_dim]
-        # Alternatively, if your UNet uses its own time_mlp, just pass t_emb here.
-
-        # Predict noise using the diffusion model
         noise_pred = self.diffusion_model(z, t_emb)
+
         return noise_pred
 
     def training_step(self, batch, batch_idx):
