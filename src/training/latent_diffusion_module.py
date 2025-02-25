@@ -17,7 +17,7 @@ class LatentDiffusionModel(DiffusionModel):
             - 'time_embed_dim': dimension for time embedding
             - optimizer and scheduler settings in 'optimizer' and 'scheduler'
         """
-        super(DiffusionModel, self).__init__(hparams)
+        super(LatentDiffusionModel, self).__init__(hparams)
         self.timesteps = hparams.get('timesteps', 1000)
 
         # Initialize the unconditional diffusion network.
