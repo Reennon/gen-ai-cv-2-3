@@ -9,7 +9,7 @@ class MnistVAE(BaseModel):
         super(MnistVAE, self).__init__(hparams)
         self.save_hyperparameters(hparams)
 
-        # Updated encoder for MNIST (1 channel, 28x28)
+        # Encoder for MNIST (1 channel, 28x28) produces a flattened size of 128*4*4 = 2048.
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=4, stride=2, padding=1),  # Output: (32, 14, 14)
             nn.ReLU(),
@@ -17,12 +17,12 @@ class MnistVAE(BaseModel):
             nn.ReLU(),
             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),  # Output: (128, 4, 4)
             nn.ReLU(),
-            nn.Flatten(),  # Flatten to 128*4*4 = 2048
+            nn.Flatten(),  # 128*4*4 = 2048
         )
         self.fc_mu = nn.Linear(128 * 4 * 4, self.hparams['latent_dim'])
         self.fc_logvar = nn.Linear(128 * 4 * 4, self.hparams['latent_dim'])
 
-        # Updated decoder for MNIST
+        # Decoder that mirrors the encoder.
         self.decoder_fc = nn.Linear(self.hparams['latent_dim'], 128 * 4 * 4)
         self.decoder = nn.Sequential(
             nn.Unflatten(1, (128, 4, 4)),
@@ -31,11 +31,12 @@ class MnistVAE(BaseModel):
             nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # (32, 14, 14)
             nn.ReLU(),
             nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1),  # (1, 28, 28)
-            nn.Sigmoid()  # Output values between 0 and 1
+            nn.Sigmoid()
         )
 
     def encode(self, x):
         x = self.encoder(x)
+        # Debug: print(x.shape) should be [B, 2048]
         mu = self.fc_mu(x)
         logvar = self.fc_logvar(x)
         return mu, logvar
@@ -55,26 +56,4 @@ class MnistVAE(BaseModel):
         x_hat = self.decode(z)
         return x_hat, mu, logvar
 
-    def training_step(self, batch, batch_idx):
-        x, _ = batch
-        x_hat, mu, logvar = self.forward(x)
-        recon_loss = F.mse_loss(x_hat, x, reduction='sum') / x.size(0)
-        kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / x.size(0)
-        loss = recon_loss + kld_loss
-        self.log('train_loss', loss)
-        self.log('recon_loss', recon_loss)
-        self.log('kld_loss', kld_loss)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        x, _ = batch
-        x_hat, mu, logvar = self.forward(x)
-        recon_loss = F.mse_loss(x_hat, x, reduction='sum') / x.size(0)
-        kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / x.size(0)
-        val_loss = recon_loss + kld_loss
-        self.log('val_loss', val_loss)
-        self.validation_outputs.append((x, x_hat))
-        return val_loss
-
-    def on_validation_epoch_end(self):
-        super().on_validation_epoch_end()
+    # (training_step, validation_step, etc.)
