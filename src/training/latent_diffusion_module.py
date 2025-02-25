@@ -7,20 +7,18 @@ from src.models.base_model import BaseModel
 from src.models.mnist_vae import MnistVAE
 from src.models.unet import TimeEmbeddingUNet  # Assuming you have a UNet implementation
 
-def sinusoidal_time_embedding(timesteps, embedding_dim=64):
+def sinusoidal_time_embedding(timesteps, embedding_dim):
     """
     Create sinusoidal time embeddings.
     """
     device = timesteps.device
     half_dim = embedding_dim // 2
-    emb = torch.exp(torch.arange(half_dim, device=device) * -(math.log(10000) / (half_dim - 1)))
+    emb = torch.exp(torch.arange(half_dim, device=device) * -(math.log(10000.0) / (half_dim - 1)))
     emb = timesteps[:, None] * emb[None, :]
     emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=1)
     if embedding_dim % 2 == 1:  # zero pad if embedding_dim is odd
         emb = F.pad(emb, (0, 1, 0, 0))
     return emb
-
-
 
 class LatentDiffusionModel(BaseModel):
     def __init__(self, hparams):
@@ -68,22 +66,29 @@ class LatentDiffusionModel(BaseModel):
         return noise_pred
 
     def validation_step(self, batch, batch_idx):
-        x, _ = batch
+        x, _ = batch  # x: [B, 1, 28, 28]
         B = x.size(0)
         device = x.device
 
         # Sample random timesteps
         t = torch.randint(0, self.timesteps, (B,), device=device)
-
-        # Forward pass with both x and t
-        noise_pred = self.forward(x, t)
-
-        # Compute loss
         mu, logvar = self.vae.encode(x)
-        z = self.vae.reparameterize(mu, logvar)
+        z = self.vae.reparameterize(mu, logvar)  # [B, latent_dim]
         noise = torch.randn_like(z)
-        loss = F.mse_loss(noise_pred, noise)
 
+        # Retrieve diffusion schedule parameters for each sampled timestep
+        sqrt_alphas_cumprod_t = self.sqrt_alphas_cumprod[t].view(B, 1)
+        sqrt_one_minus_alphas_cumprod_t = self.sqrt_one_minus_alphas_cumprod[t].view(B, 1)
+
+        # Create noisy latent code
+        noisy_z = sqrt_alphas_cumprod_t * z + sqrt_one_minus_alphas_cumprod_t * noise
+
+        # Generate time embeddings
+        t_emb = sinusoidal_time_embedding(t, self.hparams['time_embed_dim'])  # Shape: [B, time_embed_dim]
+
+        # Predict noise
+        noise_pred = self.diffusion_model(noisy_z, t_emb)
+        loss = F.mse_loss(noise_pred, noise)
         self.log("val_loss", loss)
         return loss
 
