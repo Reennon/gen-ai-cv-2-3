@@ -3,25 +3,40 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim):
         super().__init__()
         self.dim = dim
 
     def forward(self, time):
-        # Ensure time is a 1D tensor: [B]
+        # Ensure time is 1D with shape [B]
         if time.dim() > 1:
             time = time.squeeze(-1)
+
         device = time.device
         half_dim = self.dim // 2
         emb_factor = math.log(10000) / (half_dim - 1)
+
+        # Compute the embedding vector
         emb = torch.exp(torch.arange(half_dim, device=device) * -emb_factor)
-        # Outer product: time: [B, 1], emb: [1, half_dim]
-        embeddings = time.unsqueeze(1) * emb.unsqueeze(0)
+
+        # Make sure time has shape [B, 1] and emb has shape [1, half_dim]
+        time = time.view(-1, 1)  # Shape [B, 1]
+        emb = emb.view(1, -1)  # Shape [1, half_dim]
+
+        # Perform the outer product to get shape [B, half_dim]
+        embeddings = time * emb
+
+        # Concatenate sine and cosine embeddings to get [B, dim]
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
-        if self.dim % 2 == 1:  # zero pad if needed
+
+        # Pad if dimension is odd
+        if self.dim % 2 == 1:
             embeddings = F.pad(embeddings, (0, 1, 0, 0))
+
         return embeddings
+
 
 class TimeEmbeddingUNet(nn.Module):
     def __init__(self, in_channels, out_channels, time_embedding_dim, init_features=32):
