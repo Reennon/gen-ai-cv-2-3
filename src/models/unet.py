@@ -15,7 +15,10 @@ class SinusoidalPositionEmbeddings(nn.Module):
         embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
         embeddings = time[:, None] * embeddings[None, :]
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        if self.dim % 2 == 1:  # Zero pad if dimension is odd
+            embeddings = F.pad(embeddings, (0, 1))
         return embeddings
+
 
 class TimeEmbeddingUNet(nn.Module):
     def __init__(self, in_channels, out_channels, time_embedding_dim, init_features=32):
