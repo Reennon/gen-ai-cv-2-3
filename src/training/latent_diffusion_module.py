@@ -7,17 +7,15 @@ from src.models.mnist_vae import MnistVAE
 from src.models.unet import TimeEmbeddingUNet  # Your UNet with time embedding
 
 def sinusoidal_time_embedding(timesteps, embedding_dim):
-    """
-    Create sinusoidal time embeddings.
-    """
     device = timesteps.device
     half_dim = embedding_dim // 2
-    emb = torch.exp(torch.arange(half_dim, device=device) * -(math.log(10000.0) / (half_dim - 1)))
+    emb = torch.exp(torch.arange(half_dim, device=device) * -(torch.log(torch.tensor(10000.0)) / (half_dim - 1)))
     emb = timesteps[:, None] * emb[None, :]
     emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=1)
     if embedding_dim % 2 == 1:  # zero pad if embedding_dim is odd
-        emb = F.pad(emb, (0, 1, 0, 0))
+        emb = F.pad(emb, (0, 1))
     return emb
+
 
 class LatentDiffusionModel(BaseModel):
     def __init__(self, hparams):
@@ -88,9 +86,8 @@ class LatentDiffusionModel(BaseModel):
 
         # Generate time embeddings
         t_emb = sinusoidal_time_embedding(t, self.hparams['time_embed_dim'])  # [B, time_embed_dim]
-
-        # Predict noise using the diffusion model
         noise_pred = self.diffusion_model(noisy_z, t_emb)
+
         loss = F.mse_loss(noise_pred, noise)
         self.log("train_loss", loss)
         return loss
