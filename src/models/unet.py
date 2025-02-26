@@ -57,18 +57,38 @@ class TimeEmbeddingUNet(nn.Module):
 
         # Decoder path
         dec4 = F.interpolate(bottleneck, scale_factor=2, mode='bilinear', align_corners=False)
+
+        # Resize enc4 to match dec4 before concatenation
+        if enc4.size(2) != dec4.size(2) or enc4.size(3) != dec4.size(3):
+            enc4 = F.interpolate(enc4, size=dec4.size()[2:], mode='bilinear', align_corners=False)
+
         dec4 = torch.cat((dec4, enc4), dim=1)
         dec4 = self.decoder4(dec4 + t4)
 
         dec3 = F.interpolate(dec4, scale_factor=2, mode='bilinear', align_corners=False)
+
+        # Resize enc3 to match dec3 before concatenation
+        if enc3.size(2) != dec3.size(2) or enc3.size(3) != dec3.size(3):
+            enc3 = F.interpolate(enc3, size=dec3.size()[2:], mode='bilinear', align_corners=False)
+
         dec3 = torch.cat((dec3, enc3), dim=1)
         dec3 = self.decoder3(dec3 + t3)
 
         dec2 = F.interpolate(dec3, scale_factor=2, mode='bilinear', align_corners=False)
+
+        # Resize enc2 to match dec2 before concatenation
+        if enc2.size(2) != dec2.size(2) or enc2.size(3) != dec2.size(3):
+            enc2 = F.interpolate(enc2, size=dec2.size()[2:], mode='bilinear', align_corners=False)
+
         dec2 = torch.cat((dec2, enc2), dim=1)
         dec2 = self.decoder2(dec2 + t2)
 
         dec1 = F.interpolate(dec2, scale_factor=2, mode='bilinear', align_corners=False)
+
+        # Resize enc1 to match dec1 before concatenation
+        if enc1.size(2) != dec1.size(2) or enc1.size(3) != dec1.size(3):
+            enc1 = F.interpolate(enc1, size=dec1.size()[2:], mode='bilinear', align_corners=False)
+
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1 + t1)
 
