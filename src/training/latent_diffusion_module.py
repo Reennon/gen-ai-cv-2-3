@@ -2,6 +2,8 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import wandb
+
 from src.models.base_model import BaseModel
 from src.models.mnist_vae import MnistVAE
 from src.models.unet import TimeEmbeddingUNet  # Your UNet with time embedding
@@ -113,6 +115,28 @@ class LatentDiffusionModel(BaseModel):
 
         # Return both loss and images for logging
         return {"val_loss": loss, "reconstructed": reconstructed, "original": x}
+
+    def on_validation_epoch_end(self):
+        if hasattr(self, 'validation_outputs') and len(self.validation_outputs) > 0:
+            # Select a few samples from the validation outputs
+            reconstructed_images = []
+            original_images = []
+
+            for output in self.validation_outputs:
+                if "reconstructed" in output and "original" in output:
+                    reconstructed_images.append(output["reconstructed"])
+                    original_images.append(output["original"])
+
+            # Combine images into a single tensor
+            if len(reconstructed_images) > 0 and len(original_images) > 0:
+                reconstructed_images = torch.cat(reconstructed_images, dim=0)
+                original_images = torch.cat(original_images, dim=0)
+
+                # Log the images to WandB or TensorBoard
+                self.logger.experiment.log({
+                    "Reconstructed Images": [wandb.Image(reconstructed_images)],
+                    "Original Images": [wandb.Image(original_images)]
+                })
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
