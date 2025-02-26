@@ -40,7 +40,9 @@ class MnistVAE(BaseModel):
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
-        return mu + eps * std        # (B,latent_dim,7,7)
+        z = mu + eps * std
+        print(f"[VAE] Latent Space Output Shape: {z.shape}")
+        return z
 
     def decode(self, z):
         return self.decoder(z)       # (B,1,28,28)

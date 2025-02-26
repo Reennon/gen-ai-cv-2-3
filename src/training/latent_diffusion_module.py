@@ -59,6 +59,7 @@ class LatentDiffusionModel(BaseModel):
         z = self.vae.reparameterize(mu, logvar)
 
         t_emb = sinusoidal_time_embedding(t, self.hparams['time_embed_dim'])  # [B, time_embed_dim]
+        print(f"[LDM] Input to UNet Shape: {z.shape}, Time Embedding Shape: {t_emb.shape}")
         noise_pred = self.diffusion_model(z, t_emb)
 
         return noise_pred
@@ -103,6 +104,10 @@ class LatentDiffusionModel(BaseModel):
         noisy_z = sqrt_alphas_cumprod_t * z + sqrt_one_minus_alphas_cumprod_t * noise
         t_emb = sinusoidal_time_embedding(t, self.hparams['time_embed_dim'])
         noise_pred = self.diffusion_model(noisy_z, t_emb)
+
+        if noise_pred.size() != noise.size():
+            noise_pred = F.interpolate(noise_pred, size=noise.size()[2:], mode='bilinear', align_corners=False)
+
         loss = F.mse_loss(noise_pred, noise)
         self.log("val_loss", loss)
         return loss
