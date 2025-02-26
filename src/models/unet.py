@@ -41,17 +41,16 @@ class TimeEmbeddingUNet(nn.Module):
         t4 = self.time_proj4(time_emb).view(B, 512, 1, 1)
         tb = self.time_proj_bottleneck(time_emb).view(B, 1024, 1, 1)
 
-        # Now add the projected time embeddings to the feature maps:
-        enc1 = self.encoder1(x + t1)  # x is [B, in_channels, H, W], t1 is [B, 64, 1, 1]
-        enc2 = self.encoder2(self.pool1(enc1) + t2)  # pool1(enc1) is [B, 64, ...] then encoder2 outputs [B, 128, ...]
-        enc3 = self.encoder3(self.pool2(enc2) + t3)  # pool2(enc2) is [B, 128, ...]
-        enc4 = self.encoder4(self.pool3(enc3) + t4)  # pool3(enc3) is [B, 256, ...]
-        bottleneck = self.bottleneck(self.pool4(enc4) + tb)  # pool4(enc4) is [B, 512, ...]
+        # Apply the time embedding correctly after each block:
+        enc1 = self.encoder1(x + t1)  # [B, 64, H, W]
+        enc2 = self.encoder2(self.pool1(enc1)) + t2  # [B, 128, H/2, W/2]
+        enc3 = self.encoder3(self.pool2(enc2)) + t3  # [B, 256, H/4, W/4]
+        enc4 = self.encoder4(self.pool3(enc3)) + t4  # [B, 512, H/8, W/8]
+
+        bottleneck = self.bottleneck(self.pool4(enc4)) + tb  # [B, 1024, H/16, W/16]
 
         dec4 = self.upconv4(bottleneck)
         dec4 = torch.cat((dec4, enc4), dim=1)
-        # Optionally, project time embedding for the decoder blocks too.
-        # For simplicity, you can re-use the same projections or define new ones.
         dec4 = self.decoder4(dec4 + t4)
 
         dec3 = self.upconv3(dec4)
