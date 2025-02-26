@@ -42,14 +42,16 @@ class TimeEmbeddingUNet(nn.Module):
         t4 = self.time_proj4(time_emb).view(B, 512, 1, 1)
         tb = self.time_proj_bottleneck(time_emb).view(B, 1024, 1, 1)
 
-        enc1 = self.encoder1(x + t1)
-        enc2 = self.encoder2(self.pool1(enc1)) + t2
-        enc3 = self.encoder3(self.pool2(enc2)) + t3
-        enc4 = self.encoder4(self.pool3(enc3)) + t4  # This is now the deepest layer
+        # Encoder path (Note: No pool4)
+        enc1 = self.encoder1(x + t1)  # [B, 64, H, W]
+        enc2 = self.encoder2(self.pool1(enc1)) + t2  # [B, 128, H/2, W/2]
+        enc3 = self.encoder3(self.pool2(enc2)) + t3  # [B, 256, H/4, W/4]
+        enc4 = self.encoder4(self.pool3(enc3)) + t4  # [B, 512, H/8, W/8]
 
-        # Remove the fourth pooling layer:
-        bottleneck = self.bottleneck(enc4) + tb
+        # Bottleneck is now directly connected to enc4
+        bottleneck = self.bottleneck(enc4) + tb  # [B, 1024, H/8, W/8]
 
+        # Decoder path
         dec4 = self.upconv4(bottleneck)
         dec4 = torch.cat((dec4, enc4), dim=1)
         dec4 = self.decoder4(dec4 + t4)
