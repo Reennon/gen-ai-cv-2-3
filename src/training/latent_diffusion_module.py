@@ -118,7 +118,6 @@ class LatentDiffusionModel(BaseModel):
 
     def on_validation_epoch_end(self):
         if hasattr(self, 'validation_outputs') and len(self.validation_outputs) > 0:
-            # Select a few samples from the validation outputs
             reconstructed_images = []
             original_images = []
 

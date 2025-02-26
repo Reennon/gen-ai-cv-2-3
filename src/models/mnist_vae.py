@@ -50,6 +50,9 @@ class MnistVAE(BaseModel):
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparameterize(mu, logvar)
+
+        print(f"[VAE] Latent Space Output Shape: {z.shape}")
+
         x_hat = self.decode(z)
         return x_hat, mu, logvar
 

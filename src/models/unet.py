@@ -96,6 +96,31 @@ class TimeEmbeddingUNet(nn.Module):
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1)
 
+        print(f"[UNet] Input Shape: {x.shape}")
+        print(f"[UNet] After Encoder 1: {enc1.shape}")
+        print(f"[UNet] After Encoder 2: {enc2.shape}")
+        print(f"[UNet] After Encoder 3: {enc3.shape}")
+        print(f"[UNet] After Encoder 4: {enc4.shape}")
+        print(f"[UNet] Bottleneck: {bottleneck.shape}")
+
+        print(f"[UNet] After UpConv4: {dec4.shape}")
+        print(f"[UNet] Before Cat with Enc4: {enc4.shape}, {dec4.shape}")
+        print(f"[UNet] After Decoder 4: {dec4.shape}")
+
+        print(f"[UNet] After UpConv3: {dec3.shape}")
+        print(f"[UNet] Before Cat with Enc3: {enc3.shape}, {dec3.shape}")
+        print(f"[UNet] After Decoder 3: {dec3.shape}")
+
+        print(f"[UNet] After UpConv2: {dec2.shape}")
+        print(f"[UNet] Before Cat with Enc2: {enc2.shape}, {dec2.shape}")
+        print(f"[UNet] After Decoder 2: {dec2.shape}")
+
+        print(f"[UNet] After UpConv1: {dec1.shape}")
+        print(f"[UNet] Before Cat with Enc1: {enc1.shape}, {dec1.shape}")
+        print(f"[UNet] After Decoder 1: {dec1.shape}")
+
+        print(f"[UNet] Final Output: {self.conv(dec1).shape}")
+
         return self.conv(dec1)
 
     @staticmethod
