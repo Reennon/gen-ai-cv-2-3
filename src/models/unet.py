@@ -39,6 +39,7 @@ class TimeEmbeddingUNet(nn.Module):
         self.decoder2 = self._block((features * 2) * 2, features * 2)
 
         self.upconv1 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
             nn.Conv2d(features * 2, features, kernel_size=3, padding=1, bias=False)
         )
         self.decoder1 = self._block(features * 2, features)
@@ -71,7 +72,8 @@ class TimeEmbeddingUNet(nn.Module):
         bottleneck = self.bottleneck(enc4) + tb
 
         # Decoder path
-        dec4 = self.upconv4(bottleneck)
+        dec4 = F.interpolate(bottleneck, size=enc4.size()[2:], mode='bilinear', align_corners=False)
+        dec4 = self.upconv4(dec4)
         if enc4.size(2) != dec4.size(2) or enc4.size(3) != dec4.size(3):
             enc4 = F.interpolate(enc4, size=dec4.size()[2:], mode='bilinear', align_corners=False)
         dec4 = torch.cat((dec4, enc4), dim=1)
