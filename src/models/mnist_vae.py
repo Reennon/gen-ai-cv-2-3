@@ -41,7 +41,7 @@ class MnistVAE(BaseModel):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         z = mu + eps * std
-        print(f"[VAE] Latent Space Output Shape: {z.shape}")
+        # print(f"[VAE] Latent Space Output Shape: {z.shape}")
         return z
 
     def decode(self, z):
@@ -51,7 +51,7 @@ class MnistVAE(BaseModel):
         mu, logvar = self.encode(x)
         z = self.reparameterize(mu, logvar)
 
-        print(f"[VAE] Latent Space Output Shape: {z.shape}")
+        # print(f"[VAE] Latent Space Output Shape: {z.shape}")
 
         x_hat = self.decode(z)
         return x_hat, mu, logvar

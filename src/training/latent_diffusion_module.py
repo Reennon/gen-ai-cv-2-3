@@ -61,7 +61,7 @@ class LatentDiffusionModel(BaseModel):
         z = self.vae.reparameterize(mu, logvar)
 
         t_emb = sinusoidal_time_embedding(t, self.hparams['time_embed_dim'])  # [B, time_embed_dim]
-        print(f"[LDM] Input to UNet Shape: {z.shape}, Time Embedding Shape: {t_emb.shape}")
+        # print(f"[LDM] Input to UNet Shape: {z.shape}, Time Embedding Shape: {t_emb.shape}")
         noise_pred = self.diffusion_model(z, t_emb)
 
         return noise_pred
