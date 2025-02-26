@@ -30,6 +30,12 @@ class TimeEmbeddingUNet(nn.Module):
         self.decoder1 = self._block(features * 2, features)
         self.conv = nn.Conv2d(features, out_channels, kernel_size=1)
 
+        self.time_proj1 = nn.Linear(time_embedding_dim, 64)
+        self.time_proj2 = nn.Linear(time_embedding_dim, 128)
+        self.time_proj3 = nn.Linear(time_embedding_dim, 256)
+        self.time_proj4 = nn.Linear(time_embedding_dim, 512)
+        self.time_proj_bottleneck = nn.Linear(time_embedding_dim, 1024)
+
     def forward(self, x, time_emb):
         B = x.size(0)
 
