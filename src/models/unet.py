@@ -9,11 +9,11 @@ class TimeEmbeddingUNet(nn.Module):
         features = init_features
         # Encoder layers
         self.encoder1 = self._block(in_channels, features)
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)  # 28 -> 14
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)  # 64 -> 32
         self.encoder2 = self._block(features, features * 2)
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)  # 14 -> 7
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)  # 32 -> 16
         self.encoder3 = self._block(features * 2, features * 4)
-        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)  # 7 -> 3
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)  # 16 -> 8
         self.encoder4 = self._block(features * 4, features * 8)
 
         # Bottleneck
@@ -30,7 +30,6 @@ class TimeEmbeddingUNet(nn.Module):
         self.decoder1 = self._block(features * 2, features)
         self.conv = nn.Conv2d(features, out_channels, kernel_size=1)
 
-        # Time Embedding Projections
         self.time_proj1 = nn.Linear(time_embedding_dim, 64)
         self.time_proj2 = nn.Linear(time_embedding_dim, 128)
         self.time_proj3 = nn.Linear(time_embedding_dim, 256)
@@ -48,34 +47,34 @@ class TimeEmbeddingUNet(nn.Module):
         tb = self.time_proj_bottleneck(time_emb).view(B, 1024, 1, 1)
 
         # Encoder path
-        enc1 = self.encoder1(x + t1)  # [B, 64, H, W]
-        enc2 = self.encoder2(self.pool1(enc1)) + t2  # [B, 128, H/2, W/2]
-        enc3 = self.encoder3(self.pool2(enc2)) + t3  # [B, 256, H/4, W/4]
-        enc4 = self.encoder4(self.pool3(enc3)) + t4  # [B, 512, H/8, W/8]
+        enc1 = self.encoder1(x + t1)
+        enc2 = self.encoder2(self.pool1(enc1) + t2)
+        enc3 = self.encoder3(self.pool2(enc2) + t3)
+        enc4 = self.encoder4(self.pool3(enc3) + t4)
 
         # Bottleneck
-        bottleneck = self.bottleneck(enc4) + tb  # [B, 1024, H/8, W/8]
+        bottleneck = self.bottleneck(enc4) + tb
 
         # Decoder path
-        dec4 = F.interpolate(bottleneck, scale_factor=2, mode='bilinear', align_corners=False)
+        dec4 = self.upconv4(bottleneck)
         if enc4.size(2) != dec4.size(2) or enc4.size(3) != dec4.size(3):
             enc4 = F.interpolate(enc4, size=dec4.size()[2:], mode='bilinear', align_corners=False)
         dec4 = torch.cat((dec4, enc4), dim=1)
         dec4 = self.decoder4(dec4)
 
-        dec3 = F.interpolate(dec4, scale_factor=2, mode='bilinear', align_corners=False)
+        dec3 = self.upconv3(dec4)
         if enc3.size(2) != dec3.size(2) or enc3.size(3) != dec3.size(3):
             enc3 = F.interpolate(enc3, size=dec3.size()[2:], mode='bilinear', align_corners=False)
         dec3 = torch.cat((dec3, enc3), dim=1)
         dec3 = self.decoder3(dec3)
 
-        dec2 = F.interpolate(dec3, scale_factor=2, mode='bilinear', align_corners=False)
+        dec2 = self.upconv2(dec3)
         if enc2.size(2) != dec2.size(2) or enc2.size(3) != dec2.size(3):
             enc2 = F.interpolate(enc2, size=dec2.size()[2:], mode='bilinear', align_corners=False)
         dec2 = torch.cat((dec2, enc2), dim=1)
         dec2 = self.decoder2(dec2)
 
-        dec1 = F.interpolate(dec2, scale_factor=2, mode='bilinear', align_corners=False)
+        dec1 = self.upconv1(dec2)
         if enc1.size(2) != dec1.size(2) or enc1.size(3) != dec1.size(3):
             enc1 = F.interpolate(enc1, size=dec1.size()[2:], mode='bilinear', align_corners=False)
         dec1 = torch.cat((dec1, enc1), dim=1)
