@@ -20,13 +20,25 @@ class TimeEmbeddingUNet(nn.Module):
         self.bottleneck = self._block(features * 8, features * 16)
 
         # Decoder layers
-        self.upconv4 = nn.ConvTranspose2d(features * 16, features * 8, kernel_size=2, stride=2)
+        self.upconv4 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Conv2d(features * 16, features * 8, kernel_size=3, padding=1, bias=False)
+        )
         self.decoder4 = self._block((features * 8) * 2, features * 8)
-        self.upconv3 = nn.ConvTranspose2d(features * 8, features * 4, kernel_size=2, stride=2)
+        self.upconv3 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Conv2d(features * 8, features * 4, kernel_size=3, padding=1, bias=False)
+        )
         self.decoder3 = self._block((features * 4) * 2, features * 4)
-        self.upconv2 = nn.ConvTranspose2d(features * 4, features * 2, kernel_size=2, stride=2)
+        self.upconv2 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Conv2d(features * 4, features * 2, kernel_size=3, padding=1, bias=False)
+        )
         self.decoder2 = self._block((features * 2) * 2, features * 2)
-        self.upconv1 = nn.ConvTranspose2d(features * 2, features, kernel_size=2, stride=2)
+        self.upconv1 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Conv2d(features * 2, features, kernel_size=3, padding=1, bias=False)
+        )
         self.decoder1 = self._block(features * 2, features)
         self.conv = nn.Conv2d(features, out_channels, kernel_size=1)
 
@@ -48,12 +60,9 @@ class TimeEmbeddingUNet(nn.Module):
 
         # Encoder path
         enc1 = self.encoder1(x + t1)
-        enc2 = self.encoder2(self.pool1(enc1))
-        enc2 = enc2 + t2
-        enc3 = self.encoder3(self.pool2(enc2))
-        enc3 = enc3 + t3
-        enc4 = self.encoder4(self.pool3(enc3))
-        enc4 = enc4 + t4
+        enc2 = self.encoder2(self.pool1(enc1)); enc2 = enc2 + t2
+        enc3 = self.encoder3(self.pool2(enc2)); enc3 = enc3 + t3
+        enc4 = self.encoder4(self.pool3(enc3)); enc4 = enc4 + t4
 
         # Bottleneck
         bottleneck = self.bottleneck(enc4) + tb
