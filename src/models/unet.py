@@ -34,6 +34,7 @@ class TimeEmbeddingUNet(nn.Module):
         self.time_proj2 = nn.Linear(time_embedding_dim, 128)
         self.time_proj3 = nn.Linear(time_embedding_dim, 256)
         self.time_proj4 = nn.Linear(time_embedding_dim, 512)
+        self.time_proj4_expand = nn.Linear(512, 1536)  # Project t4 from 512 to 1536
         self.time_proj_bottleneck = nn.Linear(time_embedding_dim, 1024)
 
     def forward(self, x, time_emb):
@@ -62,8 +63,11 @@ class TimeEmbeddingUNet(nn.Module):
         if enc4.size(2) != dec4.size(2) or enc4.size(3) != dec4.size(3):
             enc4 = F.interpolate(enc4, size=dec4.size()[2:], mode='bilinear', align_corners=False)
 
-        dec4 = torch.cat((dec4, enc4), dim=1)
-        dec4 = self.decoder4(dec4 + t4)
+        dec4 = torch.cat((dec4, enc4), dim=1)  # dec4 is now [B, 1536, H, W]
+
+        # Project t4 to match dec4's channels
+        t4_expanded = self.time_proj4_expand(t4.view(t4.size(0), -1)).view(t4.size(0), 1536, 1, 1)
+        dec4 = self.decoder4(dec4 + t4_expanded)
 
         dec3 = F.interpolate(dec4, scale_factor=2, mode='bilinear', align_corners=False)
 
