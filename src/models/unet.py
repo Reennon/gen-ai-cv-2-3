@@ -56,19 +56,19 @@ class TimeEmbeddingUNet(nn.Module):
         bottleneck = self.bottleneck(enc4) + tb  # [B, 1024, H/8, W/8]
 
         # Decoder path
-        dec4 = F.interpolate(bottleneck, size=enc4.size()[2:], mode='bilinear', align_corners=False)
+        dec4 = F.interpolate(bottleneck, scale_factor=2, mode='bilinear', align_corners=False)
         dec4 = torch.cat((dec4, enc4), dim=1)
         dec4 = self.decoder4(dec4 + t4)
 
-        dec3 = F.interpolate(dec4, size=enc3.size()[2:], mode='bilinear', align_corners=False)
+        dec3 = F.interpolate(dec4, scale_factor=2, mode='bilinear', align_corners=False)
         dec3 = torch.cat((dec3, enc3), dim=1)
         dec3 = self.decoder3(dec3 + t3)
 
-        dec2 = F.interpolate(dec3, size=enc2.size()[2:], mode='bilinear', align_corners=False)
+        dec2 = F.interpolate(dec3, scale_factor=2, mode='bilinear', align_corners=False)
         dec2 = torch.cat((dec2, enc2), dim=1)
         dec2 = self.decoder2(dec2 + t2)
 
-        dec1 = F.interpolate(dec2, size=enc1.size()[2:], mode='bilinear', align_corners=False)
+        dec1 = F.interpolate(dec2, scale_factor=2, mode='bilinear', align_corners=False)
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1 + t1)
 
