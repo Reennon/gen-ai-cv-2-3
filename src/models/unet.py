@@ -72,55 +72,21 @@ class TimeEmbeddingUNet(nn.Module):
         bottleneck = self.bottleneck(enc4) + tb
 
         # Decoder path
-        dec4 = F.interpolate(bottleneck, size=enc4.size()[2:], mode='bilinear', align_corners=False)
-        dec4 = self.upconv4(dec4)
-        if enc4.size(2) != dec4.size(2) or enc4.size(3) != dec4.size(3):
-            enc4 = F.interpolate(enc4, size=dec4.size()[2:], mode='bilinear', align_corners=False)
+        dec4 = self.upconv4(bottleneck)
         dec4 = torch.cat((dec4, enc4), dim=1)
         dec4 = self.decoder4(dec4)
 
         dec3 = self.upconv3(dec4)
-        if enc3.size(2) != dec3.size(2) or enc3.size(3) != dec3.size(3):
-            enc3 = F.interpolate(enc3, size=dec3.size()[2:], mode='bilinear', align_corners=False)
         dec3 = torch.cat((dec3, enc3), dim=1)
         dec3 = self.decoder3(dec3)
 
         dec2 = self.upconv2(dec3)
-        if enc2.size(2) != dec2.size(2) or enc2.size(3) != dec2.size(3):
-            enc2 = F.interpolate(enc2, size=dec2.size()[2:], mode='bilinear', align_corners=False)
         dec2 = torch.cat((dec2, enc2), dim=1)
         dec2 = self.decoder2(dec2)
 
         dec1 = self.upconv1(dec2)
-        if enc1.size(2) != dec1.size(2) or enc1.size(3) != dec1.size(3):
-            enc1 = F.interpolate(enc1, size=dec1.size()[2:], mode='bilinear', align_corners=False)
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1)
-
-        print(f"[UNet] Input Shape: {x.shape}")
-        print(f"[UNet] After Encoder 1: {enc1.shape}")
-        print(f"[UNet] After Encoder 2: {enc2.shape}")
-        print(f"[UNet] After Encoder 3: {enc3.shape}")
-        print(f"[UNet] After Encoder 4: {enc4.shape}")
-        print(f"[UNet] Bottleneck: {bottleneck.shape}")
-
-        print(f"[UNet] After UpConv4: {dec4.shape}")
-        print(f"[UNet] Before Cat with Enc4: {enc4.shape}, {dec4.shape}")
-        print(f"[UNet] After Decoder 4: {dec4.shape}")
-
-        print(f"[UNet] After UpConv3: {dec3.shape}")
-        print(f"[UNet] Before Cat with Enc3: {enc3.shape}, {dec3.shape}")
-        print(f"[UNet] After Decoder 3: {dec3.shape}")
-
-        print(f"[UNet] After UpConv2: {dec2.shape}")
-        print(f"[UNet] Before Cat with Enc2: {enc2.shape}, {dec2.shape}")
-        print(f"[UNet] After Decoder 2: {dec2.shape}")
-
-        print(f"[UNet] After UpConv1: {dec1.shape}")
-        print(f"[UNet] Before Cat with Enc1: {enc1.shape}, {dec1.shape}")
-        print(f"[UNet] After Decoder 1: {dec1.shape}")
-
-        print(f"[UNet] Final Output: {self.conv(dec1).shape}")
 
         return self.conv(dec1)
 
