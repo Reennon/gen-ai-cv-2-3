@@ -16,12 +16,12 @@ class TimeEmbeddingUNet(nn.Module):
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)  # 7 -> 3
         self.encoder4 = self._block(features * 4, features * 8)
 
-        # Bottleneck now directly follows encoder4
+        # Bottleneck
         self.bottleneck = self._block(features * 8, features * 16)
 
-        # Decoder layers stay the same
+        # Decoder layers
         self.upconv4 = nn.ConvTranspose2d(features * 16, features * 8, kernel_size=2, stride=2)
-        self.decoder4 = self._block((features * 8) * 3, features * 8)
+        self.decoder4 = self._block((features * 8) * 2, features * 8)
         self.upconv3 = nn.ConvTranspose2d(features * 8, features * 4, kernel_size=2, stride=2)
         self.decoder3 = self._block((features * 4) * 2, features * 4)
         self.upconv2 = nn.ConvTranspose2d(features * 4, features * 2, kernel_size=2, stride=2)
@@ -30,11 +30,11 @@ class TimeEmbeddingUNet(nn.Module):
         self.decoder1 = self._block(features * 2, features)
         self.conv = nn.Conv2d(features, out_channels, kernel_size=1)
 
+        # Time Embedding Projections
         self.time_proj1 = nn.Linear(time_embedding_dim, 64)
         self.time_proj2 = nn.Linear(time_embedding_dim, 128)
         self.time_proj3 = nn.Linear(time_embedding_dim, 256)
         self.time_proj4 = nn.Linear(time_embedding_dim, 512)
-        self.time_proj4_expand = nn.Linear(512, 1536)  # Project t4 from 512 to 1536
         self.time_proj_bottleneck = nn.Linear(time_embedding_dim, 1024)
 
     def forward(self, x, time_emb):
@@ -47,54 +47,39 @@ class TimeEmbeddingUNet(nn.Module):
         t4 = self.time_proj4(time_emb).view(B, 512, 1, 1)
         tb = self.time_proj_bottleneck(time_emb).view(B, 1024, 1, 1)
 
-        # Encoder path (Note: No pool4)
+        # Encoder path
         enc1 = self.encoder1(x + t1)  # [B, 64, H, W]
         enc2 = self.encoder2(self.pool1(enc1)) + t2  # [B, 128, H/2, W/2]
         enc3 = self.encoder3(self.pool2(enc2)) + t3  # [B, 256, H/4, W/4]
         enc4 = self.encoder4(self.pool3(enc3)) + t4  # [B, 512, H/8, W/8]
 
-        # Bottleneck is now directly connected to enc4
+        # Bottleneck
         bottleneck = self.bottleneck(enc4) + tb  # [B, 1024, H/8, W/8]
 
         # Decoder path
         dec4 = F.interpolate(bottleneck, scale_factor=2, mode='bilinear', align_corners=False)
-
-        # Resize enc4 to match dec4 before concatenation
         if enc4.size(2) != dec4.size(2) or enc4.size(3) != dec4.size(3):
             enc4 = F.interpolate(enc4, size=dec4.size()[2:], mode='bilinear', align_corners=False)
-
-        dec4 = torch.cat((dec4, enc4), dim=1)  # dec4 is now [B, 1536, H, W]
-
-        # Project t4 to match dec4's channels
-        t4_expanded = self.time_proj4_expand(t4.view(t4.size(0), -1)).view(t4.size(0), 1536, 1, 1)
-        dec4 = self.decoder4(dec4 + t4_expanded)
+        dec4 = torch.cat((dec4, enc4), dim=1)
+        dec4 = self.decoder4(dec4)
 
         dec3 = F.interpolate(dec4, scale_factor=2, mode='bilinear', align_corners=False)
-
-        # Resize enc3 to match dec3 before concatenation
         if enc3.size(2) != dec3.size(2) or enc3.size(3) != dec3.size(3):
             enc3 = F.interpolate(enc3, size=dec3.size()[2:], mode='bilinear', align_corners=False)
-
         dec3 = torch.cat((dec3, enc3), dim=1)
-        dec3 = self.decoder3(dec3 + t3)
+        dec3 = self.decoder3(dec3)
 
         dec2 = F.interpolate(dec3, scale_factor=2, mode='bilinear', align_corners=False)
-
-        # Resize enc2 to match dec2 before concatenation
         if enc2.size(2) != dec2.size(2) or enc2.size(3) != dec2.size(3):
             enc2 = F.interpolate(enc2, size=dec2.size()[2:], mode='bilinear', align_corners=False)
-
         dec2 = torch.cat((dec2, enc2), dim=1)
-        dec2 = self.decoder2(dec2 + t2)
+        dec2 = self.decoder2(dec2)
 
         dec1 = F.interpolate(dec2, scale_factor=2, mode='bilinear', align_corners=False)
-
-        # Resize enc1 to match dec1 before concatenation
         if enc1.size(2) != dec1.size(2) or enc1.size(3) != dec1.size(3):
             enc1 = F.interpolate(enc1, size=dec1.size()[2:], mode='bilinear', align_corners=False)
-
         dec1 = torch.cat((dec1, enc1), dim=1)
-        dec1 = self.decoder1(dec1 + t1)
+        dec1 = self.decoder1(dec1)
 
         return self.conv(dec1)
 
