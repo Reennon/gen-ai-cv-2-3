@@ -109,36 +109,32 @@ class DiffusionModel(BaseModel):
         return loss
 
     @torch.no_grad()
-    def sample_ddim(self, num_steps: int = 50, eta: float = 0.0, shape: tuple = (16, 1, 28, 28)) -> torch.Tensor:
-        """
-        Deterministic sampling using DDIM.
+    def sample(self, sample_count=16, num_steps=50):
+        self.model.eval()
+        device = next(self.model.parameters()).device
+        image_size = 28
+        generated_images = torch.randn(sample_count, 1, image_size, image_size, device=device)
+        # Create a timeline from the last timestep to 0 with num_steps entries
+        time_points = torch.linspace(self.timesteps - 1, 0, steps=num_steps, dtype=torch.long, device=device)
 
-        Args:
-            num_steps: Number of sampling steps (fewer than training timesteps).
-            eta: Controls stochasticity (0.0 yields deterministic sampling).
-            shape: Shape of the generated image batch.
+        for idx in range(len(time_points) - 1):
+            current_time = time_points[idx]
+            next_time = time_points[idx + 1]
+            time_tensor = torch.full((sample_count,), current_time, device=device, dtype=torch.long)
+            predicted_noise = self.model(generated_images, time_tensor)
 
-        Returns:
-            Generated images tensor.
-        """
-        device = self.betas.device
-        x = torch.randn(shape, device=device)
-        times = torch.linspace(self.timesteps - 1, 0, num_steps, device=device, dtype=torch.long)
-        for i in range(num_steps):
-            t = times[i]
-            t_tensor = torch.full((shape[0],), t, device=device, dtype=torch.float32)
-            t_norm = t_tensor / self.timesteps
-            predicted_noise = self.model(x, t_norm)
-            alpha_t = self.alphas_cumprod[t]
-            sqrt_alpha_t = torch.sqrt(alpha_t)
-            sqrt_one_minus_alpha_t = torch.sqrt(1 - alpha_t)
-            x0_pred = (x - sqrt_one_minus_alpha_t * predicted_noise) / sqrt_alpha_t
-            if t > 0:
-                alpha_prev = self.alphas_cumprod[t - 1]
-                sigma = eta * torch.sqrt((1 - alpha_prev) / (1 - alpha_t) * (1 - alpha_t / alpha_prev))
-                noise = torch.randn_like(x) if eta > 0 else 0.0
-                x = torch.sqrt(alpha_prev) * x0_pred + torch.sqrt(
-                    1 - alpha_prev - sigma ** 2) * predicted_noise + sigma * noise
-            else:
-                x = x0_pred
-        return x
+            current_alpha = self.alpha_bar[current_time]
+            sqrt_current_alpha = current_alpha.sqrt()
+            sqrt_one_minus_current = (1 - current_alpha).sqrt()
+
+            # Estimate x0 from the noisy image
+            estimated_x0 = (generated_images - sqrt_one_minus_current * predicted_noise) / sqrt_current_alpha
+
+            next_alpha = self.alpha_bar[next_time]
+            sqrt_next_alpha = next_alpha.sqrt()
+
+            # Update the images based on the predicted noise and estimated x0
+            generated_images = sqrt_next_alpha * estimated_x0 + (1 - next_alpha).sqrt() * predicted_noise
+
+        return generated_images
+
