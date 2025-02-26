@@ -48,9 +48,12 @@ class TimeEmbeddingUNet(nn.Module):
 
         # Encoder path
         enc1 = self.encoder1(x + t1)
-        enc2 = self.encoder2(self.pool1(enc1)) + t2
-        enc3 = self.encoder3(self.pool2(enc2)) + t3
-        enc4 = self.encoder4(self.pool3(enc3)) + t4
+        enc2 = self.encoder2(self.pool1(enc1))
+        enc2 = enc2 + t2
+        enc3 = self.encoder3(self.pool2(enc2))
+        enc3 = enc3 + t3
+        enc4 = self.encoder4(self.pool3(enc3))
+        enc4 = enc4 + t4
 
         # Bottleneck
         bottleneck = self.bottleneck(enc4) + tb
