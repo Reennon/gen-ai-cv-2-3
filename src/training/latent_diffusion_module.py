@@ -104,13 +104,15 @@ class LatentDiffusionModel(BaseModel):
         noisy_z = sqrt_alphas_cumprod_t * z + sqrt_one_minus_alphas_cumprod_t * noise
         t_emb = sinusoidal_time_embedding(t, self.hparams['time_embed_dim'])
         noise_pred = self.diffusion_model(noisy_z, t_emb)
-
-        if noise_pred.size() != noise.size():
-            noise_pred = F.interpolate(noise_pred, size=noise.size()[2:], mode='bilinear', align_corners=False)
-
         loss = F.mse_loss(noise_pred, noise)
         self.log("val_loss", loss)
-        return loss
+
+        # Add reconstructed images for visualization
+        with torch.no_grad():
+            reconstructed = self.vae.decode(z)
+
+        # Return both loss and images for logging
+        return {"val_loss": loss, "reconstructed": reconstructed, "original": x}
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
