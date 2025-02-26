@@ -39,9 +39,9 @@ class TimeEmbeddingUNet(nn.Module):
         self.decoder2 = self._block((features * 2) * 2, features * 2)
 
         self.upconv1 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            nn.Upsample(scale_factor=1, mode='bilinear', align_corners=False),  # No scaling
             nn.Conv2d(features * 2, features, kernel_size=3, padding=1, bias=False)
-        )
+        ),
         self.decoder1 = self._block(features * 2, features)
         self.conv = nn.Conv2d(features, out_channels, kernel_size=1)
 
