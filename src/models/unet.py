@@ -5,7 +5,6 @@ import torch.nn.functional as F
 class TimeEmbeddingUNet(nn.Module):
     def __init__(self, in_channels, out_channels, time_embedding_dim, init_features=32):
         super(TimeEmbeddingUNet, self).__init__()
-        # Removed self.time_mlp and SinusoidalPositionEmbeddings usage
 
         features = init_features
         self.encoder1 = self._block(in_channels, features)
@@ -27,29 +26,46 @@ class TimeEmbeddingUNet(nn.Module):
         self.decoder1 = self._block(features * 2, features)
         self.conv = nn.Conv2d(features, out_channels, kernel_size=1)
 
-    def forward(self, x, time_emb):
-        # Expecting time_emb of shape [B, time_embedding_dim].
-        # Reshape to [B, time_embedding_dim, 1, 1] for broadcasting.
-        t = time_emb.view(time_emb.size(0), time_emb.size(1), 1, 1)
+        self.time_proj1 = nn.Linear(time_embedding_dim, 64)
+        self.time_proj2 = nn.Linear(time_embedding_dim, 128)
+        self.time_proj3 = nn.Linear(time_embedding_dim, 256)
+        self.time_proj4 = nn.Linear(time_embedding_dim, 512)
+        self.time_proj_bottleneck = nn.Linear(time_embedding_dim, 1024)
 
-        # Now add the time embedding to feature maps.
-        enc1 = self.encoder1(x + t)
-        enc2 = self.encoder2(self.pool1(enc1) + t)
-        enc3 = self.encoder3(self.pool2(enc2) + t)
-        enc4 = self.encoder4(self.pool3(enc3) + t)
-        bottleneck = self.bottleneck(self.pool4(enc4) + t)
+    def forward(self, x, time_emb):
+        B = x.size(0)
+        # Project the time embedding to match each block's channel dimension:
+        t1 = self.time_proj1(time_emb).view(B, 64, 1, 1)
+        t2 = self.time_proj2(time_emb).view(B, 128, 1, 1)
+        t3 = self.time_proj3(time_emb).view(B, 256, 1, 1)
+        t4 = self.time_proj4(time_emb).view(B, 512, 1, 1)
+        tb = self.time_proj_bottleneck(time_emb).view(B, 1024, 1, 1)
+
+        # Now add the projected time embeddings to the feature maps:
+        enc1 = self.encoder1(x + t1)  # x is [B, in_channels, H, W], t1 is [B, 64, 1, 1]
+        enc2 = self.encoder2(self.pool1(enc1) + t2)  # pool1(enc1) is [B, 64, ...] then encoder2 outputs [B, 128, ...]
+        enc3 = self.encoder3(self.pool2(enc2) + t3)  # pool2(enc2) is [B, 128, ...]
+        enc4 = self.encoder4(self.pool3(enc3) + t4)  # pool3(enc3) is [B, 256, ...]
+        bottleneck = self.bottleneck(self.pool4(enc4) + tb)  # pool4(enc4) is [B, 512, ...]
+
         dec4 = self.upconv4(bottleneck)
         dec4 = torch.cat((dec4, enc4), dim=1)
-        dec4 = self.decoder4(dec4 + t)
+        # Optionally, project time embedding for the decoder blocks too.
+        # For simplicity, you can re-use the same projections or define new ones.
+        dec4 = self.decoder4(dec4 + t4)
+
         dec3 = self.upconv3(dec4)
         dec3 = torch.cat((dec3, enc3), dim=1)
-        dec3 = self.decoder3(dec3 + t)
+        dec3 = self.decoder3(dec3 + t3)
+
         dec2 = self.upconv2(dec3)
         dec2 = torch.cat((dec2, enc2), dim=1)
-        dec2 = self.decoder2(dec2 + t)
+        dec2 = self.decoder2(dec2 + t2)
+
         dec1 = self.upconv1(dec2)
         dec1 = torch.cat((dec1, enc1), dim=1)
-        dec1 = self.decoder1(dec1 + t)
+        dec1 = self.decoder1(dec1 + t1)
+
         return self.conv(dec1)
 
     @staticmethod
