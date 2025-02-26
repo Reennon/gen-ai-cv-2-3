@@ -21,7 +21,7 @@ class TimeEmbeddingUNet(nn.Module):
 
         # Decoder layers stay the same
         self.upconv4 = nn.ConvTranspose2d(features * 16, features * 8, kernel_size=2, stride=2)
-        self.decoder4 = self._block((features * 8) * 2, features * 8)
+        self.decoder4 = self._block((features * 8) * 3, features * 8)
         self.upconv3 = nn.ConvTranspose2d(features * 8, features * 4, kernel_size=2, stride=2)
         self.decoder3 = self._block((features * 4) * 2, features * 4)
         self.upconv2 = nn.ConvTranspose2d(features * 4, features * 2, kernel_size=2, stride=2)
