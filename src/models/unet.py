@@ -7,15 +7,19 @@ class TimeEmbeddingUNet(nn.Module):
         super(TimeEmbeddingUNet, self).__init__()
 
         features = init_features
+        # Encoder layers
         self.encoder1 = self._block(in_channels, features)
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)  # 28 -> 14
         self.encoder2 = self._block(features, features * 2)
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)  # 14 -> 7
         self.encoder3 = self._block(features * 2, features * 4)
-        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)  # 7 -> 3
         self.encoder4 = self._block(features * 4, features * 8)
-        self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Bottleneck now directly follows encoder4
         self.bottleneck = self._block(features * 8, features * 16)
+
+        # Decoder layers stay the same
         self.upconv4 = nn.ConvTranspose2d(features * 16, features * 8, kernel_size=2, stride=2)
         self.decoder4 = self._block((features * 8) * 2, features * 8)
         self.upconv3 = nn.ConvTranspose2d(features * 8, features * 4, kernel_size=2, stride=2)
@@ -25,12 +29,6 @@ class TimeEmbeddingUNet(nn.Module):
         self.upconv1 = nn.ConvTranspose2d(features * 2, features, kernel_size=2, stride=2)
         self.decoder1 = self._block(features * 2, features)
         self.conv = nn.Conv2d(features, out_channels, kernel_size=1)
-
-        self.time_proj1 = nn.Linear(time_embedding_dim, 64)
-        self.time_proj2 = nn.Linear(time_embedding_dim, 128)
-        self.time_proj3 = nn.Linear(time_embedding_dim, 256)
-        self.time_proj4 = nn.Linear(time_embedding_dim, 512)
-        self.time_proj_bottleneck = nn.Linear(time_embedding_dim, 1024)
 
     def forward(self, x, time_emb):
         B = x.size(0)
