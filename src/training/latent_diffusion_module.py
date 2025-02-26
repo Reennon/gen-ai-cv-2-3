@@ -41,18 +41,3 @@ class LatentDiffusionModel(pl.LightningModule):
 
     def configure_optimizers(self):
         return Adam(self.parameters(), lr=1e-3)
-
-
-def sample_ddim(diff_model, pretrained_vae, sample_count=16, step_count=50):
-    latent_sample = torch.randn((sample_count, diff_model.latent_dim), device=diff_model.device)
-
-    for current_step in reversed(range(step_count)):
-        step_tensor = torch.full((sample_count,), current_step, device=diff_model.device)
-        noise_estimate = diff_model(latent_sample, step_tensor)
-        # Simplified update step for the latent variable
-        latent_sample = latent_sample - noise_estimate / step_count
-
-    # Decode the latent sample to reconstruct images
-    features = pretrained_vae.decoder_input(latent_sample).view(-1, 64, 7, 7)
-    reconstructed_images = pretrained_vae.decoder(features)
-    return reconstructed_images
